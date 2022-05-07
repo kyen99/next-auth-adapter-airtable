@@ -23,7 +23,6 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
   const verificationTable = base.table('VerificationToken')
 
   async function getUserById(userId: string) {
-    console.log('getUserById')
     return <Promise<AdapterUser>>(
       userTable.find(userId).then((Record) => Record.fields)
     )
@@ -32,7 +31,6 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
   async function getSessionBySessionToken(
     sessionToken: string
   ): Promise<AdapterSession> {
-    console.log('getSessionBySessionToken')
     return <Promise<AdapterSession>>sessionTable
       .select({ filterByFormula: `{sessionToken} = '${sessionToken}'` })
       .all()
@@ -88,12 +86,10 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
     },
 
     async getUser(id) {
-      console.log('getUser', id)
       return getUserById(id)
     },
 
     async getUserByEmail(email) {
-      console.log('getUserByEmail', email)
       return <Promise<AdapterUser>>userTable
         .select({ filterByFormula: `{email}='${email}'` })
         .all()
@@ -101,7 +97,6 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
     },
 
     async getUserByAccount({ providerAccountId, provider }) {
-      console.log('getUserByAccount', providerAccountId, provider)
       const { userId } = await getAccountByProvider({
         providerAccountId,
         provider,
@@ -115,7 +110,6 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
     },
 
     async updateUser(user) {
-      console.log('updateUser', user)
       const { id, ...userFields } = user
       if (!id)
         throw Error('Cannot update user. User id does not exist in user table')
@@ -124,18 +118,15 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
     },
 
     async deleteUser(userId) {
-      console.log('deleteUser', userId)
       await userTable.destroy(userId)
     },
 
     async linkAccount(account) {
-      console.log('linkAccount', account)
       const accountFields = { ...account, userId: [account.userId] }
       await accountTable.create(accountFields)
     },
 
     async unlinkAccount({ providerAccountId, provider }) {
-      console.log('unlinkAccount', providerAccountId, provider)
       const account = await getAccountByProvider({
         providerAccountId,
         provider,
@@ -146,7 +137,6 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
     },
 
     async createSession({ sessionToken, userId, expires }) {
-      console.log('createSession')
       const sessionFields = {
         sessionToken,
         expires: expires.toISOString(),
@@ -159,7 +149,6 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
     },
 
     async getSessionAndUser(sessionToken) {
-      console.log('getSessionAndUser', sessionToken)
       const session = await getSessionBySessionToken(sessionToken)
       if (!session) return null
 
@@ -176,7 +165,6 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
     },
 
     async updateSession(newSession) {
-      console.log('updateSession', newSession)
       const { sessionToken } = newSession
       const { id } = await getSessionBySessionToken(sessionToken)
       if (!id) return
@@ -190,14 +178,12 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
     },
 
     async deleteSession(sessionToken) {
-      console.log('deleteSession', sessionToken)
       const sessionId = (await getSessionBySessionToken(sessionToken))?.id
       if (!sessionId) return null
       await sessionTable.destroy(sessionId)
     },
 
     async createVerificationToken(data) {
-      console.log('createVerificationToken', data)
       return <Promise<VerificationToken>>(
         verificationTable
           .create({ ...data, expires: data.expires.toISOString() })
@@ -206,7 +192,6 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
     },
 
     async useVerificationToken({ identifier, token }) {
-      console.log('useVerificationToken', identifier, token)
       const verifier = await getVerificationTokenByIdentifierAndToken({
         identifier,
         token,

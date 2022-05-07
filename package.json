@@ -2,7 +2,8 @@
   "name": "next-auth-adapter-airtable",
   "version": "0.0.1",
   "description": "Airtable adapter for next auth",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "repository": "git@github.com:kyen99/next-auth-adapter-airtable.git",
   "author": "Kai Yen <kyen99@gmail.com>",
   "license": "MIT",
@@ -12,7 +13,9 @@
     "test": "test"
   },
   "dependencies": {
-    "airtable": "^0.11.3",
+    "airtable": "^0.11.3"
+  },
+  "peerDependencies": {
     "next-auth": "^4.3.4"
   },
   "devDependencies": {
