@@ -10,16 +10,19 @@
   "private": false,
   "scripts": {
     "build": "tsc",
-    "test": "test"
+    "test": "test",
+    "dev": "tsc --watch"
   },
   "dependencies": {
     "airtable": "^0.11.3",
-    "encoding": "^0.1.13"
-  },
-  "peerDependencies": {
+    "encoding": "^0.1.13",
     "next-auth": "^4.3.4"
   },
   "devDependencies": {
     "typescript": "^4.6.4"
+  },
+  "peerDependencies": {
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   }
 }

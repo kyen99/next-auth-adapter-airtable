@@ -7,15 +7,15 @@ import {
 import Airtable, { FieldSet } from 'airtable'
 
 interface AirtableOptions {
-  apiKey: string
-  baseId: string
+  apiKey: string // The apikey from your account page in Airtable
+  baseId: string // the first part of the url after airtable.com... https://airtable.com/baseId/something/somethingelse
 }
 
 export default function AirtableAdapter(options: AirtableOptions): Adapter {
   const { apiKey, baseId } = options
-  Airtable.configure({ apiKey })
+  if (!apiKey || !baseId) throw Error('Missing apiKey or baseId')
 
-  const airtable = new Airtable()
+  const airtable = new Airtable({ apiKey })
   const base = airtable.base(baseId)
   const userTable = base.table('User')
   const accountTable = base.table('Account')
@@ -51,7 +51,6 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
     providerAccountId: string
     provider: string
   }) {
-    console.log('getAccountByProvider')
     return accountTable
       .select({
         filterByFormula: `AND({providerAccountId}='${providerAccountId}', {provider}='${provider}')`,
@@ -93,7 +92,7 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
       return <Promise<AdapterUser>>userTable
         .select({ filterByFormula: `{email}='${email}'` })
         .all()
-        .then((Records) => Records[0].fields)
+        .then((Records) => (Records.length > 0 ? Records[0].fields : null))
     },
 
     async getUserByAccount({ providerAccountId, provider }) {
