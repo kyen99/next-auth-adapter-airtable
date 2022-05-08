@@ -1,6 +1,6 @@
 import { runBasicTests } from './basic-tests'
 import AirtableAdapter from '../src/index'
-import Airtable from 'airtable'
+import Airtable, { Table } from 'airtable'
 import dotenv from 'dotenv'
 dotenv.config()
 
@@ -108,10 +108,11 @@ const emptyDb = async () => {
   )
 }
 
-const getAllRecords = async (table) =>
+const getAllRecords = async (table: Table<any>) =>
   table
     .select()
     .all()
     .then((records) => records.map((record) => record.id))
 
-const deleteRecords = async (table, ids) => table.destroy(ids)
+const deleteRecords = async (table: Table<any>, ids: string[]) =>
+  table.destroy(ids)
