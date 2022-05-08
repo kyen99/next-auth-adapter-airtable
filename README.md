@@ -16,7 +16,7 @@ Add your apiKey and the baseId of the cloned base to .env:
 
 ```
 AIRTABLE_API_KEY=keyXXXXXXXXXXXXXX // From your account page
-AIRTABLE_BASE_ID=appXXXXXXXXXXXXXX // When viewing the base https://airtable.com/baseId/something/somethingelse/
+AIRTABLE_BASE_ID=appXXXXXXXXXXXXXX // e.g. https://airtable.com/baseId/something/somethingelse/
 ```
 
 ## Usage

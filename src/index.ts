@@ -1,202 +1,89 @@
-import {
-  Adapter,
-  AdapterSession,
-  AdapterUser,
-  VerificationToken,
-} from 'next-auth/adapters'
-import Airtable, { FieldSet } from 'airtable'
-
-interface AirtableOptions {
-  apiKey: string // The apikey from your account page in Airtable
-  baseId: string // the first part of the url after airtable.com... https://airtable.com/baseId/something/somethingelse
-}
+import { Adapter } from 'next-auth/adapters'
+import AirtableModel, { AirtableOptions } from './model'
 
 export default function AirtableAdapter(options: AirtableOptions): Adapter {
-  const { apiKey, baseId } = options
-  if (!apiKey || !baseId) throw Error('Missing apiKey or baseId')
-
-  const airtable = new Airtable({ apiKey })
-  const base = airtable.base(baseId)
-  const userTable = base.table('User')
-  const accountTable = base.table('Account')
-  const sessionTable = base.table('Session')
-  const verificationTable = base.table('VerificationToken')
-
-  async function getUserById(userId: string) {
-    return <Promise<AdapterUser>>(
-      userTable.find(userId).then((Record) => Record.fields)
-    )
-  }
-
-  async function getSessionBySessionToken(
-    sessionToken: string
-  ): Promise<AdapterSession> {
-    return <Promise<AdapterSession>>sessionTable
-      .select({ filterByFormula: `{sessionToken} = '${sessionToken}'` })
-      .all()
-      .then((Records) => (Records.length ? Records[0].fields : null))
-      .then((fields) => {
-        if (!fields) return null
-        const userId = Array.isArray(fields.userId)
-          ? fields.userId[0]
-          : fields.userId
-        return { ...fields, userId }
-      })
-  }
-
-  async function getAccountByProvider({
-    providerAccountId,
-    provider,
-  }: {
-    providerAccountId: string
-    provider: string
-  }) {
-    return accountTable
-      .select({
-        filterByFormula: `AND({providerAccountId}='${providerAccountId}', {provider}='${provider}')`,
-      })
-      .all()
-      .then((Records) => (Records.length > 0 ? Records[0].fields : {}))
-  }
-
-  async function getVerificationTokenByIdentifierAndToken({
-    identifier,
-    token,
-  }: {
-    identifier: string
-    token: string
-  }) {
-    console.log('getVerificationTokenbyIdentifierAndToken', identifier, token)
-    return <Promise<VerificationToken & { id?: string }>>verificationTable
-      .select({
-        filterByFormula: `AND({token}='${token}', {identifier}='${identifier}')`,
-      })
-      .all()
-      .then((Records) => (Records.length ? Records[0].fields : null))
-  }
-
+  const am = AirtableModel(options)
   return {
     async createUser(user: any) {
-      return <Promise<AdapterUser>>(
-        userTable
-          .create([{ fields: user }])
-          .then((Records) => Records[0].fields)
-      )
+      return am.insertUser(user)
     },
 
     async getUser(id) {
-      return getUserById(id)
+      return am.getUserById(id)
     },
 
     async getUserByEmail(email) {
-      return <Promise<AdapterUser>>userTable
-        .select({ filterByFormula: `{email}='${email}'` })
-        .all()
-        .then((Records) => (Records.length > 0 ? Records[0].fields : null))
+      return am.getUserByEmail(email)
     },
 
     async getUserByAccount({ providerAccountId, provider }) {
-      const { userId } = await getAccountByProvider({
+      const { userId } = await am.getAccountByProvider({
         providerAccountId,
         provider,
       })
-
       if (!userId) return null
-
-      return <Promise<AdapterUser>>(
-        userTable.find(userId.toString()).then((record) => record.fields)
-      )
+      return am.getUserById(userId)
     },
 
     async updateUser(user) {
-      const { id, ...userFields } = user
-      if (!id)
-        throw Error('Cannot update user. User id does not exist in user table')
-      await userTable.update(id, <Partial<FieldSet>>userFields)
-      return getUserById(id)
+      const { id } = await am.updateUser(user)
+      return am.getUserById(id)
     },
 
     async deleteUser(userId) {
-      await userTable.destroy(userId)
+      am.deleteUser(userId)
     },
 
     async linkAccount(account) {
-      const accountFields = { ...account, userId: [account.userId] }
-      await accountTable.create(accountFields)
+      am.createAccount(account)
     },
 
     async unlinkAccount({ providerAccountId, provider }) {
-      const account = await getAccountByProvider({
+      const account = await am.getAccountByProvider({
         providerAccountId,
         provider,
       })
       const { id } = account
       if (!id) throw Error('Could not unlink account.')
-      accountTable.destroy(id.toString())
+      am.deleteAccount(id)
     },
 
-    async createSession({ sessionToken, userId, expires }) {
-      const sessionFields = {
-        sessionToken,
-        expires: expires.toISOString(),
-        userId: [userId],
-      }
-      return <Promise<AdapterSession>>sessionTable
-        .create(sessionFields)
-        .then((Record) => Record.fields)
-        .then((fields) => ({ ...fields, expires: new Date(expires) }))
+    async createSession(session) {
+      return am.createSession(session)
     },
 
     async getSessionAndUser(sessionToken) {
-      const session = await getSessionBySessionToken(sessionToken)
+      const session = await am.getSessionBySessionToken(sessionToken)
       if (!session) return null
-
-      const user = await getUserById(session.userId)
-
+      const user = await am.getUserById(session.userId)
       return {
-        session: {
-          ...session,
-          expires: new Date(session.expires),
-          userId: session.userId[0],
-        },
-        user: { ...user, Account: undefined, Session: undefined },
+        session,
+        user,
       }
     },
 
     async updateSession(newSession) {
-      const { sessionToken } = newSession
-      const { id } = await getSessionBySessionToken(sessionToken)
-      if (!id) return
-      await sessionTable.update(id, {
-        ...newSession,
-        expires: newSession.expires?.toISOString(),
-      })
-      return <Promise<AdapterSession>>(
-        sessionTable.find(id).then((Record) => Record.fields)
-      )
+      const { id } = await am.updateSession(newSession)
+      return am.getSession(id)
     },
 
     async deleteSession(sessionToken) {
-      const sessionId = (await getSessionBySessionToken(sessionToken))?.id
+      const sessionId = (await am.getSessionBySessionToken(sessionToken))?.id
       if (!sessionId) return null
-      await sessionTable.destroy(sessionId)
+      am.deleteSession(sessionId)
     },
 
     async createVerificationToken(data) {
-      return <Promise<VerificationToken>>(
-        verificationTable
-          .create({ ...data, expires: data.expires.toISOString() })
-          .then((Records) => Records.fields)
-      )
+      return am.createVerification(data)
     },
 
     async useVerificationToken({ identifier, token }) {
-      const verifier = await getVerificationTokenByIdentifierAndToken({
+      const verifier = await am.getVerificationTokenByIdentifierAndToken({
         identifier,
         token,
       })
       if (!verifier?.id) return null
-      verificationTable.destroy(verifier.id.toString())
+      am.deleteVerification(verifier.id)
       return verifier
     },
   }
