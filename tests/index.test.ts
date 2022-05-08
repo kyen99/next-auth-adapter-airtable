@@ -10,11 +10,11 @@ dotenv.config()
    - clone this base: https://airtable.com/shr16Xd8glUk90c4P
    - add your api key and base id in .env
 
-  Tests fail occasionally (10 fail, 7 pass). I think that if you look up
-  a newly created record in Airtable too fast, it's not there. I double
-  checked that there is nowhere a record is created that isn't either
-  awaited or the promise returned.
-
+  Tests occasionally fail. It seems like the assignment on line 118
+  in basic-test.ts randomly doesn't happen, which causes several tests
+  to fail because they are missing the userId that comes back from
+  the createUser test...
+  `user = dbUser`
 */
 
 const apiKey = process.env.AIRTABLE_API_KEY
