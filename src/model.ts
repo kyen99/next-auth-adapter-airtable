@@ -3,7 +3,7 @@ import {
   AdapterUser,
   VerificationToken,
 } from 'next-auth/adapters'
-import Airtable, { Table, FieldSet } from 'airtable'
+import Airtable, { Table, FieldSet, Record, Records } from 'airtable'
 
 export interface AirtableOptions {
   apiKey: string // The apikey from your account page in Airtable
@@ -15,6 +15,14 @@ interface AirtableSession {
   sessionToken: string
   userId: string
   expires: string
+}
+
+interface AirtableUser {
+  id: string
+  name: string
+  email: string
+  image: string
+  emailVerified: string
 }
 
 interface AirtableVerification extends VerificationToken {
@@ -37,44 +45,21 @@ export default function AirtableModel({ apiKey, baseId }: AirtableOptions) {
 
   return {
     getUserById: async (userId: string) =>
-      <Promise<AdapterUser | null>>userTable
+      userTable
         .find(userId)
-        .then((Record) => Record?.fields)
-        .then((user) => {
-          if (!user) return null
-          const { id, name, email, image, emailVerified } = user
-          return {
-            id,
-            name,
-            email,
-            image,
-            emailVerified: emailVerified
-              ? new Date(emailVerified?.toString())
-              : null,
-          }
-        })
+        .then((r) => <AirtableUser>(<unknown>getRecordFields(r)))
+        .then(convertAirtableUserToAdapterUser)
         .catch((e) => {
           if (e.error === 'NOT_FOUND') return null
           throw e
         }),
 
-    getUserByEmail: (email: string) => <Promise<AdapterUser | null>>userTable
+    getUserByEmail: (email: string) =>
+      userTable
         .select({ filterByFormula: `{email}='${email}'` })
         .all()
-        .then((Records) => Records[0]?.fields || null)
-        .then((user) => {
-          if (!user) return null
-          const { id, name, image, emailVerified } = user
-          return {
-            id,
-            name,
-            email,
-            image,
-            emailVerified: emailVerified
-              ? new Date(emailVerified.toString())
-              : null,
-          }
-        }),
+        .then((r) => <AirtableUser>(<unknown>getRecordsFields(r)))
+        .then(convertAirtableUserToAdapterUser),
 
     getSessionBySessionToken: getSessionBySessionToken(sessionTable),
 
@@ -84,7 +69,7 @@ export default function AirtableModel({ apiKey, baseId }: AirtableOptions) {
           filterByFormula: `AND({providerAccountId}='${providerAccountId}', {provider}='${provider}')`,
         })
         .all()
-        .then((Records) => Records[0]?.fields),
+        .then(getRecordsFields),
 
     getVerificationTokenByIdentifierAndToken: ({
       identifier,
@@ -95,7 +80,7 @@ export default function AirtableModel({ apiKey, baseId }: AirtableOptions) {
           filterByFormula: `AND({token}='${token}', {identifier}='${identifier}')`,
         })
         .all()
-        .then((Records) => Records[0]?.fields)
+        .then(getRecordsFields)
     },
 
     insertUser: async ({ name, email, image, emailVerified }: AdapterUser) => {
@@ -108,18 +93,8 @@ export default function AirtableModel({ apiKey, baseId }: AirtableOptions) {
 
       return <Promise<AdapterUser>>userTable
         .create(userFields)
-        .then((Record) => Record?.fields)
-        .then((user) => {
-          return {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            image: user.image,
-            emailVerified: user.emailVerified
-              ? new Date(user.emailVerified.toString())
-              : null,
-          }
-        })
+        .then((r) => <AirtableUser>(<unknown>getRecordFields(r)))
+        .then(convertAirtableUserToAdapterUser)
     },
 
     updateUser: async (user: Partial<AdapterUser>) => {
@@ -128,7 +103,7 @@ export default function AirtableModel({ apiKey, baseId }: AirtableOptions) {
       return <Promise<AdapterUser>>(
         userTable
           .update(id, <Partial<FieldSet>>userFields)
-          .then((Record) => Record?.fields)
+          .then(getRecordFields)
       )
     },
 
@@ -137,12 +112,12 @@ export default function AirtableModel({ apiKey, baseId }: AirtableOptions) {
       const userSessionIds = await sessionTable
         .select({ filterByFormula: `{userId}='${userId}'` })
         .all()
-        .then((Records) => Records.map((Record) => Record.id))
+        .then((records) => records.map((record) => record.id))
       await sessionTable.destroy(userSessionIds)
       const userAccountIds = await accountTable
         .select({ filterByFormula: `{userId}='${userId}'` })
         .all()
-        .then((Records) => Records.map((Record) => Record.id))
+        .then((records) => records.map((record) => record.id))
       await accountTable.destroy(userAccountIds)
       await userTable
         .destroy(userId)
@@ -153,7 +128,7 @@ export default function AirtableModel({ apiKey, baseId }: AirtableOptions) {
       const accountFields = { ...account, userId: [account.userId] }
       return accountTable
         .create([{ fields: accountFields }])
-        .then((Records) => Records[0].fields)
+        .then(getRecordsFields)
     },
 
     deleteAccount: async (accountId: string) => {
@@ -173,7 +148,7 @@ export default function AirtableModel({ apiKey, baseId }: AirtableOptions) {
       }
       return <Promise<AdapterSession>>sessionTable
         .create([{ fields: sessionFields }])
-        .then((Records) => Records[0].fields)
+        .then(getRecordsFields)
         .then((fields) => ({
           ...fields,
           userId: userId[0],
@@ -191,14 +166,14 @@ export default function AirtableModel({ apiKey, baseId }: AirtableOptions) {
           ...newSession,
           expires: newSession.expires?.toISOString(),
         })
-        .then((Record) => Record.fields)
+        .then(getRecordFields)
         .catch((_e) => null)
     },
 
     getSession: (sessionId: string) =>
       <Promise<AdapterSession | null>>sessionTable
         .find(sessionId)
-        .then((Record) => Record?.fields)
+        .then(getRecordFields)
         .then((fields) => {
           if (!fields || !fields.expires) return null
           return {
@@ -225,17 +200,20 @@ export default function AirtableModel({ apiKey, baseId }: AirtableOptions) {
           .create([
             { fields: { ...data, expires: data.expires.toISOString() } },
           ])
-          .then((Records) => Records[0]?.fields)
+          .then(getRecordsFields)
       ),
   }
 }
+
+const getRecordFields = (record: Record<FieldSet>) => record?.fields
+const getRecordsFields = (record: Records<FieldSet>) => record[0]?.fields
 
 const getSessionBySessionToken =
   (sessionTable: Table<any>) => (sessionToken: string) =>
     <Promise<AdapterSession | null>>sessionTable
       .select({ filterByFormula: `{sessionToken} = '${sessionToken}'` })
       .all()
-      .then((Records) => Records[0]?.fields)
+      .then((r) => <AirtableSession>(<unknown>getRecordsFields(r)))
       .then((fields) => {
         if (!fields) return null
         return {
@@ -244,3 +222,17 @@ const getSessionBySessionToken =
           expires: new Date(fields.expires),
         }
       })
+
+const convertAirtableUserToAdapterUser = async (
+  user: AirtableUser
+): Promise<AdapterUser | null> => {
+  if (!user) return null
+  const { id, name, email, image, emailVerified } = user
+  return {
+    id,
+    name,
+    email,
+    image,
+    emailVerified: emailVerified ? new Date(emailVerified?.toString()) : null,
+  }
+}
