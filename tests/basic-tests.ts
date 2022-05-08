@@ -1,6 +1,14 @@
 import type { Adapter } from 'next-auth/adapters'
 import { createHash, randomUUID } from 'crypto'
 
+/*
+
+  This is copied directly from:
+  `https://github.com/nextauthjs/adapters/blob/main/basic-tests.ts`
+  so that this could eventually be incorporated into the official adapters.
+
+*/
+
 export interface TestOptions {
   adapter: Adapter
   db: {
