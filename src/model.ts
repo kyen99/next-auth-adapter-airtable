@@ -10,6 +10,22 @@ export interface AirtableOptions {
   baseId: string // e.g. https://airtable.com/baseId/something/somethingelse
 }
 
+interface AirtableSession {
+  id: string
+  sessionToken: string
+  userId: string
+  expires: string
+}
+
+interface AirtableVerification extends VerificationToken {
+  id: string
+}
+
+interface Provider {
+  provider: string
+  providerAccountId: string
+}
+
 export default function AirtableModel({ apiKey, baseId }: AirtableOptions) {
   if (!apiKey || !baseId) throw Error('Missing apiKey or baseId')
   const airtable = new Airtable({ apiKey })
@@ -18,167 +34,213 @@ export default function AirtableModel({ apiKey, baseId }: AirtableOptions) {
   const userTable = base.table('User')
   const sessionTable = base.table('Session')
   const verificationTable = base.table('VerificationToken')
+
   return {
-    getUserById: getUserById(userTable),
-    getUserByEmail: getUserByEmail(userTable),
+    getUserById: async (userId: string) =>
+      <Promise<AdapterUser | null>>userTable
+        .find(userId)
+        .then((Record) => Record?.fields)
+        .then((user) => {
+          if (!user) return null
+          const { id, name, email, image, emailVerified } = user
+          return {
+            id,
+            name,
+            email,
+            image,
+            emailVerified: emailVerified
+              ? new Date(emailVerified?.toString())
+              : null,
+          }
+        })
+        .catch((e) => {
+          if (e.error === 'NOT_FOUND') return null
+          throw e
+        }),
+
+    getUserByEmail: (email: string) => <Promise<AdapterUser | null>>userTable
+        .select({ filterByFormula: `{email}='${email}'` })
+        .all()
+        .then((Records) => Records[0]?.fields || null)
+        .then((user) => {
+          if (!user) return null
+          const { id, name, image, emailVerified } = user
+          return {
+            id,
+            name,
+            email,
+            image,
+            emailVerified: emailVerified
+              ? new Date(emailVerified.toString())
+              : null,
+          }
+        }),
+
     getSessionBySessionToken: getSessionBySessionToken(sessionTable),
-    getAccountByProvider: getAccountByProvider(accountTable),
-    getVerificationTokenByIdentifierAndToken:
-      getVerificationTokenByIdentifierAndToken(verificationTable),
-    insertUser: insertUser(userTable),
-    updateUser: updateUser(userTable),
-    deleteUser: deleteUser(userTable),
-    createAccount: createAccount(accountTable),
-    deleteAccount: deleteAccount(accountTable),
-    createSession: createSession(sessionTable),
-    updateSession: updateSession(sessionTable),
-    getSession: getSession(sessionTable),
-    deleteSession: deleteSession(sessionTable),
-    createVerification: createVerification(verificationTable),
-    deleteVerification: deleteVerification(verificationTable),
-  }
-}
 
-const createVerification =
-  (verificationTable: Table<any>) => async (data: any) => {
-    return <Promise<VerificationToken>>(
-      verificationTable
-        .create([{ fields: { ...data, expires: data.expires.toISOString() } }])
+    getAccountByProvider: async ({ providerAccountId, provider }: Provider) =>
+      accountTable
+        .select({
+          filterByFormula: `AND({providerAccountId}='${providerAccountId}', {provider}='${provider}')`,
+        })
+        .all()
+        .then((Records) => Records[0]?.fields),
+
+    getVerificationTokenByIdentifierAndToken: ({
+      identifier,
+      token,
+    }: Omit<VerificationToken, 'expires'>) => {
+      return <Promise<AirtableVerification | null>>verificationTable
+        .select({
+          filterByFormula: `AND({token}='${token}', {identifier}='${identifier}')`,
+        })
+        .all()
+        .then((Records) => Records[0]?.fields)
+    },
+
+    insertUser: async ({ name, email, image, emailVerified }: AdapterUser) => {
+      const userFields = {
+        name: name?.toString(),
+        email: email?.toString(),
+        image: image?.toString(),
+        emailVerified: emailVerified?.toISOString(),
+      }
+
+      return <Promise<AdapterUser>>userTable
+        .create(userFields)
+        .then((Record) => Record?.fields)
+        .then((user) => {
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            image: user.image,
+            emailVerified: user.emailVerified
+              ? new Date(user.emailVerified.toString())
+              : null,
+          }
+        })
+    },
+
+    updateUser: async (user: Partial<AdapterUser>) => {
+      const { id, ...userFields } = user
+      if (!id) return null
+      return <Promise<AdapterUser>>(
+        userTable
+          .update(id, <Partial<FieldSet>>userFields)
+          .then((Record) => Record?.fields)
+      )
+    },
+
+    deleteUser: async (userId: string) => {
+      if (!userId) return null
+      const userSessionIds = await sessionTable
+        .select({ filterByFormula: `{userId}='${userId}'` })
+        .all()
+        .then((Records) => Records.map((Record) => Record.id))
+      await sessionTable.destroy(userSessionIds)
+      const userAccountIds = await accountTable
+        .select({ filterByFormula: `{userId}='${userId}'` })
+        .all()
+        .then((Records) => Records.map((Record) => Record.id))
+      await accountTable.destroy(userAccountIds)
+      await userTable
+        .destroy(userId)
+        .then((fields) => ({ ...fields, Account: undefined }))
+    },
+
+    createAccount: async (account: any) => {
+      const accountFields = { ...account, userId: [account.userId] }
+      return accountTable
+        .create([{ fields: accountFields }])
         .then((Records) => Records[0].fields)
-    )
-  }
+    },
 
-const deleteVerification =
-  (verificationTable: Table<any>) => async (verificationId: string) => {
-    return verificationTable.destroy(verificationId)
-  }
+    deleteAccount: async (accountId: string) => {
+      await accountTable.destroy(accountId)
+      return null
+    },
 
-const insertUser = (userTable: Table<any>) => async (user: AdapterUser) =>
-  <Promise<AdapterUser>>(
-    userTable.create([{ fields: user }]).then((Records) => Records[0].fields)
-  )
-
-const updateUser =
-  (userTable: Table<any>) => async (user: Partial<AdapterUser>) => {
-    const { id, ...userFields } = user
-    if (!id)
-      throw Error('Cannot update user. User id does not exist in user table')
-    return userTable
-      .update(id, <Partial<FieldSet>>userFields)
-      .then((Record) => Record.fields)
-  }
-
-const deleteUser = (userTable: Table<any>) => async (userId: string) =>
-  userTable.destroy(userId)
-
-const getUserById = (userTable: Table<any>) => async (userId: string) => {
-  return <Promise<AdapterUser>>userTable
-    .find(userId)
-    .then((Record) => Record.fields)
-    .then((user) => ({ ...user, Account: undefined, Session: undefined }))
-}
-
-const createAccount = (accountTable: Table<any>) => async (account: any) => {
-  const accountFields = { ...account, userId: [account.userId] }
-  accountTable.create(accountFields)
-}
-
-const deleteAccount =
-  (accountTable: Table<any>) => async (accountId: string) => {
-    accountTable.destroy(accountId)
-  }
-
-const createSession =
-  (sessionTable: Table<any>) =>
-  async ({
-    sessionToken,
-    userId,
-    expires,
-  }: {
-    sessionToken: string
-    userId: string
-    expires: Date
-  }) => {
-    const sessionFields = {
+    createSession: async ({
       sessionToken,
-      expires: expires.toISOString(),
-      userId: [userId],
-    }
-    return <Promise<AdapterSession>>sessionTable
-      .create(sessionFields)
-      .then((Record) => Record.fields)
-      .then((fields) => ({ ...fields, expires: new Date(expires) }))
-  }
+      userId,
+      expires,
+    }: Omit<AdapterSession, 'id'>) => {
+      const sessionFields = {
+        sessionToken,
+        userId: [userId],
+        expires: expires.toISOString(),
+      }
+      return <Promise<AdapterSession>>sessionTable
+        .create([{ fields: sessionFields }])
+        .then((Records) => Records[0].fields)
+        .then((fields) => ({
+          ...fields,
+          userId: userId[0],
+          expires: new Date(expires),
+        }))
+    },
 
-const updateSession =
-  (sessionTable: Table<any>) => async (newSession: Partial<AdapterSession>) => {
-    const { sessionToken = '' } = newSession
-    const { id } = await getSessionBySessionToken(sessionTable)(sessionToken)
-    if (!id) return
-    return sessionTable
-      .update(id, {
-        ...newSession,
-        expires: newSession.expires?.toISOString(),
-      })
-      .then((Record) => Record.fields)
-  }
+    updateSession: async (newSession: Partial<AdapterSession>) => {
+      const { sessionToken } = newSession
+      if (!sessionToken) return null
+      const session = await getSessionBySessionToken(sessionTable)(sessionToken)
+      if (!session?.id) return null
+      return <Promise<AirtableSession | null>>sessionTable
+        .update(session.id, {
+          ...newSession,
+          expires: newSession.expires?.toISOString(),
+        })
+        .then((Record) => Record.fields)
+        .catch((_e) => null)
+    },
 
-const getSession = (sessionTable: Table<any>) => (sessionId: string) => {
-  return <Promise<AdapterSession>>(
-    sessionTable.find(sessionId).then((Record) => Record.fields)
-  )
+    getSession: (sessionId: string) =>
+      <Promise<AdapterSession | null>>sessionTable
+        .find(sessionId)
+        .then((Record) => Record?.fields)
+        .then((fields) => {
+          if (!fields || !fields.expires) return null
+          return {
+            sessionToken: fields.sessionToken,
+            userId: Array.isArray(fields.userId)
+              ? fields?.userId[0]
+              : fields.userId,
+            expires: new Date(fields.expires.toString()),
+          }
+        })
+        .catch((e) => {
+          if (e.error === 'NOT_FOUND') return null
+          throw e
+        }),
+
+    deleteSession: (sessionId: string) => sessionTable.destroy(sessionId),
+
+    deleteVerification: async (verificationId: string) =>
+      verificationTable.destroy(verificationId),
+
+    createVerification: async (data: any) =>
+      <Promise<VerificationToken>>(
+        verificationTable
+          .create([
+            { fields: { ...data, expires: data.expires.toISOString() } },
+          ])
+          .then((Records) => Records[0]?.fields)
+      ),
+  }
 }
-
-const deleteSession = (sessionTable: Table<any>) => (sessionId: string) =>
-  sessionTable.destroy(sessionId)
 
 const getSessionBySessionToken =
-  (sessionTable: Table<any>) =>
-  (sessionToken: string): Promise<AdapterSession> => {
-    return <Promise<AdapterSession>>sessionTable
+  (sessionTable: Table<any>) => (sessionToken: string) =>
+    <Promise<AdapterSession | null>>sessionTable
       .select({ filterByFormula: `{sessionToken} = '${sessionToken}'` })
       .all()
-      .then((Records) => (Records.length ? Records[0].fields : null))
+      .then((Records) => Records[0]?.fields)
       .then((fields) => {
         if (!fields) return null
-        const userId = Array.isArray(fields.userId)
-          ? fields.userId[0]
-          : fields.userId
-        return { ...fields, userId, expires: new Date(fields.expires) }
+        return {
+          ...fields,
+          userId: fields.userId[0],
+          expires: new Date(fields.expires),
+        }
       })
-  }
-
-const getAccountByProvider =
-  (accountTable: Table<any>) =>
-  async ({
-    providerAccountId,
-    provider,
-  }: {
-    providerAccountId: string
-    provider: string
-  }) => {
-    return accountTable
-      .select({
-        filterByFormula: `AND({providerAccountId}='${providerAccountId}', {provider}='${provider}')`,
-      })
-      .all()
-      .then((Records) => (Records.length > 0 ? Records[0].fields : {}))
-  }
-
-const getVerificationTokenByIdentifierAndToken =
-  (verificationTable: Table<any>) =>
-  ({ identifier, token }: { identifier: string; token: string }) => {
-    return <Promise<VerificationToken & { id?: string }>>verificationTable
-      .select({
-        filterByFormula: `AND({token}='${token}', {identifier}='${identifier}')`,
-      })
-      .all()
-      .then((Records) => (Records.length ? Records[0].fields : null))
-  }
-
-const getUserByEmail = (userTable: Table<any>) => (email: string) => {
-  return <Promise<AdapterUser>>userTable
-    .select({ filterByFormula: `{email}='${email}'` })
-    .all()
-    .then((Records) => (Records.length > 0 ? Records[0].fields : null))
-}

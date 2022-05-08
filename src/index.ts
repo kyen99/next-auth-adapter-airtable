@@ -17,25 +17,29 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
     },
 
     async getUserByAccount({ providerAccountId, provider }) {
-      const { userId } = await am.getAccountByProvider({
+      const user = await am.getAccountByProvider({
         providerAccountId,
         provider,
       })
+      const { userId } = user || {}
       if (!userId) return null
-      return am.getUserById(userId)
+      return am.getUserById(userId.toString())
     },
 
+    // @ts-ignore - shouldn't updateUser be able to return null?
+    // what if the user record was deleted?
     async updateUser(user) {
-      const { id } = await am.updateUser(user)
-      return am.getUserById(id)
+      const u = await am.updateUser(user)
+      if (!u) return null
+      return am.getUserById(u.id.toString())
     },
 
     async deleteUser(userId) {
-      am.deleteUser(userId)
+      return am.deleteUser(userId)
     },
 
     async linkAccount(account) {
-      am.createAccount(account)
+      await am.createAccount(account)
     },
 
     async unlinkAccount({ providerAccountId, provider }) {
@@ -43,9 +47,10 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
         providerAccountId,
         provider,
       })
-      const { id } = account
-      if (!id) throw Error('Could not unlink account.')
-      am.deleteAccount(id)
+      const { id } = account || {}
+      if (!id)
+        throw Error('Could not unlink account because it does not exist.')
+      await am.deleteAccount(id.toString())
     },
 
     async createSession(session) {
@@ -56,6 +61,7 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
       const session = await am.getSessionBySessionToken(sessionToken)
       if (!session) return null
       const user = await am.getUserById(session.userId)
+      if (!user) return null
       return {
         session,
         user,
@@ -63,18 +69,25 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
     },
 
     async updateSession(newSession) {
-      const { id } = await am.updateSession(newSession)
-      return am.getSession(id)
+      const session = await am.updateSession(newSession)
+      return session ? am.getSession(session.id) : null
     },
 
     async deleteSession(sessionToken) {
       const sessionId = (await am.getSessionBySessionToken(sessionToken))?.id
       if (!sessionId) return null
-      am.deleteSession(sessionId)
+      await am.deleteSession(sessionId)
     },
 
     async createVerificationToken(data) {
-      return am.createVerification(data)
+      const verifier = await am.createVerification(data)
+      if (!verifier) return null
+      const { expires, identifier, token } = verifier
+      return {
+        token,
+        identifier,
+        expires,
+      }
     },
 
     async useVerificationToken({ identifier, token }) {
@@ -83,8 +96,12 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
         token,
       })
       if (!verifier?.id) return null
-      am.deleteVerification(verifier.id)
-      return verifier
+      await am.deleteVerification(verifier.id)
+      return {
+        token: verifier.token,
+        identifier: verifier.identifier,
+        expires: new Date(verifier.expires),
+      }
     },
   }
 }

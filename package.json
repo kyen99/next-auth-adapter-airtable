@@ -1,6 +1,6 @@
 {
   "name": "next-auth-adapter-airtable",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Airtable adapter for next auth",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,7 +10,7 @@
   "private": false,
   "scripts": {
     "build": "tsc",
-    "test": "test",
+    "test": "jest",
     "dev": "tsc --watch"
   },
   "dependencies": {
@@ -19,6 +19,15 @@
     "next-auth": "^4.3.4"
   },
   "devDependencies": {
+    "@babel/core": "^7.17.10",
+    "@babel/preset-env": "^7.17.10",
+    "@babel/preset-typescript": "^7.16.7",
+    "@types/jest": "^27.5.0",
+    "babel-jest": "^28.1.0",
+    "dotenv": "^16.0.0",
+    "jest": "^28.1.0",
+    "ts-jest": "^28.0.2",
+    "ts-node": "^10.7.0",
     "typescript": "^4.6.4"
   },
   "peerDependencies": {
