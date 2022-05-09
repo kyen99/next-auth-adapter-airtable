@@ -1,11 +1,23 @@
 {
   "name": "next-auth-adapter-airtable",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Airtable adapter for next auth",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "repository": "git@github.com:kyen99/next-auth-adapter-airtable.git",
-  "author": "Kai Yen <kyen99@gmail.com>",
+  "keywords": [
+    "next-auth",
+    "nextauth",
+    "nextauthjs"
+  ],
+  "bugs": {
+    "url": "https://github.com/kyen99/next-auth-adapter-airtable/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kyen99/next-auth-adapter-airtable.git"
+  },
+  "homepage": "https://github.com/kyen99/next-auth-adapter-airtable",
+  "author": "Kai Yen <kai@c4k.net>",
   "license": "MIT",
   "private": false,
   "scripts": {
