@@ -1,13 +1,12 @@
 {
   "name": "next-auth-adapter-airtable",
-  "version": "0.0.4",
-  "description": "Airtable adapter for next auth",
+  "version": "0.0.5",
+  "description": "Airtable adapter for next-auth",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "keywords": [
     "next-auth",
-    "nextauth",
-    "nextauthjs"
+    "airtable"
   ],
   "bugs": {
     "url": "https://github.com/kyen99/next-auth-adapter-airtable/issues"
