@@ -34,8 +34,6 @@ export default function AirtableAdapter(
       return User.getUserById(userId.toString())
     },
 
-    // @ts-ignore - shouldn't updateUser be able to return null?
-    // what if the user record was deleted?
     async updateUser(user) {
       const u = await User.updateUser(user)
       if (!u) return null
@@ -56,8 +54,7 @@ export default function AirtableAdapter(
         provider,
       })
       const { id } = account || {}
-      if (!id)
-        throw Error('Could not unlink account because it does not exist.')
+      if (!id) return
       await Account.deleteAccount(id.toString())
     },
 
