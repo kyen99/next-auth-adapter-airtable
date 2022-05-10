@@ -2,12 +2,13 @@ import { Base, FieldSet } from 'airtable'
 import { AdapterUser } from 'next-auth/adapters'
 import { getRecordFields, getRecordsFields, getRecordsIds } from './utils'
 
+// Not sure why I need to define
 interface AirtableUser {
   id: string
-  name: string
-  email: string
-  image: string
-  emailVerified: string
+  name: string | undefined
+  email: string | undefined
+  image: string | undefined
+  emailVerified: string | undefined
 }
 
 export default function User(base: Base) {

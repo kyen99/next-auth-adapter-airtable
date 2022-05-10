@@ -6,10 +6,7 @@ import {
   getRecordsFields,
 } from './utils'
 
-interface AirtableSession {
-  id: string
-  sessionToken: string
-  userId: string
+export interface AirtableSession extends Omit<AdapterSession, 'expires'> {
   expires: string
 }
 

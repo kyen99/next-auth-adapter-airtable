@@ -1,12 +1,6 @@
 import { Record, Records, Table, FieldSet } from 'airtable'
 import { AdapterSession } from 'next-auth/adapters'
-
-interface AirtableSession {
-  id: string
-  sessionToken: string
-  userId: string
-  expires: string
-}
+import { AirtableSession } from './session'
 
 export const getRecordFields = (record: Record<FieldSet>) => record?.fields
 export const getRecordsFields = (record: Records<FieldSet>) => record[0]?.fields

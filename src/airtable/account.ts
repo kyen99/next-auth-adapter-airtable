@@ -1,7 +1,7 @@
 import { Base } from 'airtable'
 import { getRecordsFields } from './utils'
 
-interface IProvider {
+interface AuthProvider {
   provider: string
   providerAccountId: string
 }
@@ -10,7 +10,10 @@ export default function Account(base: Base) {
   const table = base.table('Account')
 
   return {
-    getAccountByProvider: async ({ providerAccountId, provider }: IProvider) =>
+    getAccountByProvider: async ({
+      providerAccountId,
+      provider,
+    }: AuthProvider) =>
       table
         .select({
           filterByFormula: `AND({providerAccountId}='${providerAccountId}', {provider}='${provider}')`,
