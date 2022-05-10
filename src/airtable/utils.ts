@@ -10,6 +10,8 @@ interface AirtableSession {
 
 export const getRecordFields = (record: Record<FieldSet>) => record?.fields
 export const getRecordsFields = (record: Records<FieldSet>) => record[0]?.fields
+export const getRecordsIds = (records: Records<FieldSet>) =>
+  records.map((record) => record.id)
 
 export const getSessionBySessionToken =
   (sessionTable: Table<any>) => (sessionToken: string) =>

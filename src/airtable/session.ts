@@ -18,6 +18,7 @@ export default function Session(base: Base) {
 
   return {
     getSessionBySessionToken: getSessionBySessionToken(table),
+
     createSession: async ({
       sessionToken,
       userId,

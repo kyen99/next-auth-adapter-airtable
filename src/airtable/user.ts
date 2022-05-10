@@ -1,6 +1,6 @@
 import { Base, FieldSet } from 'airtable'
 import { AdapterUser } from 'next-auth/adapters'
-import { getRecordFields, getRecordsFields } from './utils'
+import { getRecordFields, getRecordsFields, getRecordsIds } from './utils'
 
 interface AirtableUser {
   id: string
@@ -62,12 +62,12 @@ export default function User(base: Base) {
       const userSessionIds = await sessionTable
         .select({ filterByFormula: `{userId}='${userId}'` })
         .all()
-        .then((records) => records.map((record) => record.id))
+        .then(getRecordsIds)
       await sessionTable.destroy(userSessionIds)
       const userAccountIds = await accountTable
         .select({ filterByFormula: `{userId}='${userId}'` })
         .all()
-        .then((records) => records.map((record) => record.id))
+        .then(getRecordsIds)
       await accountTable.destroy(userAccountIds)
       await userTable
         .destroy(userId)
