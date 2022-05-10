@@ -1,66 +1,74 @@
 import { Adapter } from 'next-auth/adapters'
-import AirtableModel, { AirtableOptions } from './model'
+import AirtableModel, { AirtableModelOptions } from './airtable'
 
-export default function AirtableAdapter(options: AirtableOptions): Adapter {
-  const am = AirtableModel(options)
+export default function AirtableAdapter(
+  options: AirtableModelOptions
+): Adapter {
+  const {
+    account: Account,
+    user: User,
+    session: Session,
+    verification: Verification,
+  } = AirtableModel(options)
+
   return {
     async createUser(user: any) {
-      return am.insertUser(user)
+      return User.createUser(user)
     },
 
     async getUser(id) {
-      return am.getUserById(id)
+      return User.getUserById(id)
     },
 
     async getUserByEmail(email) {
-      return am.getUserByEmail(email)
+      return User.getUserByEmail(email)
     },
 
     async getUserByAccount({ providerAccountId, provider }) {
-      const user = await am.getAccountByProvider({
+      const user = await Account.getAccountByProvider({
         providerAccountId,
         provider,
       })
       const { userId } = user || {}
       if (!userId) return null
-      return am.getUserById(userId.toString())
+      return User.getUserById(userId.toString())
     },
 
     // @ts-ignore - shouldn't updateUser be able to return null?
     // what if the user record was deleted?
     async updateUser(user) {
-      const u = await am.updateUser(user)
+      const u = await User.updateUser(user)
       if (!u) return null
-      return am.getUserById(u.id.toString())
+      return User.getUserById(u.id.toString())
     },
 
     async deleteUser(userId) {
-      return am.deleteUser(userId)
+      return User.deleteUser(userId)
     },
 
     async linkAccount(account) {
-      await am.createAccount(account)
+      await Account.createAccount(account)
     },
 
     async unlinkAccount({ providerAccountId, provider }) {
-      const account = await am.getAccountByProvider({
+      const account = await Account.getAccountByProvider({
         providerAccountId,
         provider,
       })
       const { id } = account || {}
       if (!id)
         throw Error('Could not unlink account because it does not exist.')
-      await am.deleteAccount(id.toString())
+      await Account.deleteAccount(id.toString())
     },
 
     async createSession(session) {
-      return am.createSession(session)
+      return Session.createSession(session)
     },
 
     async getSessionAndUser(sessionToken) {
-      const session = await am.getSessionBySessionToken(sessionToken)
+      const session = await Session.getSessionBySessionToken(sessionToken)
       if (!session) return null
-      const user = await am.getUserById(session.userId)
+      const user = await User.getUserById(session.userId)
       if (!user) return null
       return {
         session,
@@ -69,18 +77,19 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
     },
 
     async updateSession(newSession) {
-      const session = await am.updateSession(newSession)
-      return session ? am.getSession(session.id) : null
+      const session = await Session.updateSession(newSession)
+      return session ? Session.getSession(session.id) : null
     },
 
     async deleteSession(sessionToken) {
-      const sessionId = (await am.getSessionBySessionToken(sessionToken))?.id
+      const sessionId = (await Session.getSessionBySessionToken(sessionToken))
+        ?.id
       if (!sessionId) return null
-      await am.deleteSession(sessionId)
+      await Session.deleteSession(sessionId)
     },
 
     async createVerificationToken(data) {
-      const verifier = await am.createVerification(data)
+      const verifier = await Verification.createVerification(data)
       if (!verifier) return null
       const { expires, identifier, token } = verifier
       return {
@@ -91,12 +100,13 @@ export default function AirtableAdapter(options: AirtableOptions): Adapter {
     },
 
     async useVerificationToken({ identifier, token }) {
-      const verifier = await am.getVerificationTokenByIdentifierAndToken({
-        identifier,
-        token,
-      })
+      const verifier =
+        await Verification.getVerificationTokenByIdentifierAndToken({
+          identifier,
+          token,
+        })
       if (!verifier?.id) return null
-      await am.deleteVerification(verifier.id)
+      await Verification.deleteVerification(verifier.id)
       return {
         token: verifier.token,
         identifier: verifier.identifier,
