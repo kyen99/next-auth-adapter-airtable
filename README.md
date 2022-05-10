@@ -6,6 +6,8 @@ This is a [next-auth](https://next-auth.js.org/) database adapter for [Airtable]
 
 This is experimental. Use at your own risk. I've tested this with Google and Email providers. If you run across a configuration that doesn't work, open an issue [here](https://github.com/kyen99/next-auth-adapter-airtable/issues) with your `[...nextauth].js` file.
 
+There is test coverage using the standard basic-tests.ts set used for the adapters in the official repo.
+
 ## Airtable schema
 
 Clone this base in Airtable: https://airtable.com/shr16Xd8glUk90c4P

@@ -10,11 +10,6 @@ dotenv.config()
    - clone this base: https://airtable.com/shr16Xd8glUk90c4P
    - add your api key and base id in .env
 
-  Tests occasionally fail. It seems like the assignment on line 118
-  in basic-test.ts randomly doesn't happen, which causes several tests
-  to fail because they are missing the userId that comes back from
-  the createUser test...
-  `user = dbUser`
 */
 
 const apiKey = process.env.AIRTABLE_API_KEY
@@ -30,12 +25,12 @@ const verificationTable = base.table('VerificationToken')
 runBasicTests({
   adapter: AirtableAdapter({ apiKey, baseId }),
   db: {
-    id: () => 'recgGUeAtrecuMhUz',
+    id: () => 'recThisIsAFakeUid',
     connect: async () => {
-      emptyDb()
+      await emptyDb()
     },
     disconnect: async () => {
-      emptyDb()
+      await emptyDb()
     },
     verificationToken: ({ identifier, token }) => {
       return verificationTable
@@ -63,7 +58,10 @@ runBasicTests({
             emailVerified: new Date(fields.emailVerified.toString()),
           }
         })
-        .catch(() => null) // Airtable throws an error when find fails
+        .catch((e) => {
+          if (e.error === 'NOT_FOUND') return null
+          throw e
+        }) // Airtable throws a 404 error when find fails
     },
     account: ({ provider, providerAccountId }) =>
       accountTable
@@ -100,11 +98,13 @@ runBasicTests({
 })
 
 const emptyDb = async () => {
-  ;[userTable, accountTable, sessionTable, verificationTable].forEach(
-    async (table) => {
-      const ids = await getAllRecords(table)
-      ids.length && deleteRecords(table, ids)
-    }
+  return Promise.all(
+    [userTable, accountTable, sessionTable, verificationTable].map(
+      async (table) => {
+        const ids = await getAllRecords(table)
+        return ids.length && deleteRecords(table, ids)
+      }
+    )
   )
 }
 
@@ -115,4 +115,6 @@ const getAllRecords = async (table: Table<any>) =>
     .then((records) => records.map((record) => record.id))
 
 const deleteRecords = async (table: Table<any>, ids: string[]) =>
+  // TODO: will error if there are more than 10 ids to delete
+  // but basic-tests.ts never creates that many
   table.destroy(ids)
