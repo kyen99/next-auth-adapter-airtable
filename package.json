@@ -1,6 +1,6 @@
 {
   "name": "next-auth-adapter-airtable",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Airtable adapter for next-auth",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
