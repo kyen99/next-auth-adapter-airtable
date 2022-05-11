@@ -1,9 +1,9 @@
 import { Base, FieldSet } from 'airtable'
 import { AdapterUser } from 'next-auth/adapters'
-import { getRecordFields, getRecordsFields, getRecordsIds } from './utils'
+import { getRecordFields, getRecordsFields } from './utils'
 
-// Not sure why I need to define
-interface AirtableUser {
+// Not sure why I need to define id, name, email and image here
+interface AirtableUser extends Omit<AdapterUser, 'emailVerified'> {
   id: string
   name: string | undefined
   email: string | undefined
@@ -60,16 +60,18 @@ export default function User(base: Base) {
 
     deleteUser: async (userId: string) => {
       if (!userId) return null
-      const userSessionIds = await sessionTable
+      await sessionTable
         .select({ filterByFormula: `{userId}='${userId}'` })
         .all()
-        .then(getRecordsIds)
-      await sessionTable.destroy(userSessionIds)
-      const userAccountIds = await accountTable
+        .then((records) =>
+          Promise.all(records.map((record) => record.destroy()))
+        )
+      await accountTable
         .select({ filterByFormula: `{userId}='${userId}'` })
         .all()
-        .then(getRecordsIds)
-      await accountTable.destroy(userAccountIds)
+        .then((records) =>
+          Promise.all(records.map((record) => record.destroy()))
+        )
       await userTable
         .destroy(userId)
         .then((fields) => ({ ...fields, Account: undefined }))

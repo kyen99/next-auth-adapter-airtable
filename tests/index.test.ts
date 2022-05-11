@@ -101,20 +101,14 @@ const emptyDb = async () => {
   return Promise.all(
     [userTable, accountTable, sessionTable, verificationTable].map(
       async (table) => {
-        const ids = await getAllRecords(table)
-        return ids.length && deleteRecords(table, ids)
+        return deleteAllRecords(table)
       }
     )
   )
 }
 
-const getAllRecords = async (table: Table<any>) =>
+const deleteAllRecords = async (table: Table<any>) =>
   table
     .select()
     .all()
-    .then((records) => records.map((record) => record.id))
-
-const deleteRecords = async (table: Table<any>, ids: string[]) =>
-  // TODO: will error if there are more than 10 ids to delete
-  // but basic-tests.ts never creates that many
-  table.destroy(ids)
+    .then((records) => records.map((record) => record.destroy()))

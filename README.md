@@ -8,6 +8,11 @@ This is experimental. Use at your own risk. I've tested this with Google and Ema
 
 There is test coverage using the standard basic-tests.ts set used for the adapters in the official repo.
 
+## TODO
+
+- Use returned record object to destroy items rather than table.destroy where possible
+- Make objects returned from airtable lookups always match adapter objects
+
 ## Airtable schema
 
 Clone this base in Airtable: https://airtable.com/shr16Xd8glUk90c4P
