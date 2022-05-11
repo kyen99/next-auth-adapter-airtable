@@ -2,12 +2,9 @@ import { Base, FieldSet } from 'airtable'
 import { AdapterUser } from 'next-auth/adapters'
 import { getRecordFields, getRecordsFields } from './utils'
 
-// Not sure why I need to define id, name, email and image here
-interface AirtableUser extends Omit<AdapterUser, 'emailVerified'> {
-  id: string
-  name: string | undefined
-  email: string | undefined
-  image: string | undefined
+// Not sure why Pick works but Omit<AdapterUser, 'emailVerified'> does not
+interface AirtableUser
+  extends Pick<AdapterUser, 'id' | 'name' | 'email' | 'image'> {
   emailVerified: string | undefined
 }
 
