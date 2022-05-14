@@ -20,6 +20,15 @@ export default function Verification(base: Base) {
         })
         .all()
         .then(getRecordsFields)
+        .then((fields) => {
+          if (!fields) return null
+          return {
+            id: fields.id,
+            token: fields.token,
+            identifier: fields.identifier,
+            expires: new Date(<string>fields.expires),
+          }
+        })
     },
     deleteVerification: async (verificationId: string) =>
       table.destroy(verificationId),

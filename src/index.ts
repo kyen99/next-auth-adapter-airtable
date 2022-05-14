@@ -55,7 +55,7 @@ export default function AirtableAdapter(
       })
       const { id } = account || {}
       if (!id) return
-      await Account.deleteAccount(id.toString())
+      await Account.deleteAccount(id)
     },
 
     async createSession(session) {
@@ -107,7 +107,7 @@ export default function AirtableAdapter(
       return {
         token: verifier.token,
         identifier: verifier.identifier,
-        expires: new Date(verifier.expires),
+        expires: verifier.expires,
       }
     },
   }
